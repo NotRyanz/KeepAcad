@@ -78,7 +78,6 @@ export async function openFileOrLink(uri: string | undefined): Promise<void> {
     }
 
     if (Platform.OS === 'web') {
-      // Browsers often falsely report Sharing as available but fail on blobs
       try {
         window.open(uri, '_blank');
       } catch (e) {
@@ -87,13 +86,26 @@ export async function openFileOrLink(uri: string | undefined): Promise<void> {
       return;
     }
 
+    if (Platform.OS === 'android') {
+      try {
+        // We need the content URI for Android 7+ (Nougat) rather than file://
+        const contentUri = await FileSystem.getContentUriAsync(uri);
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: contentUri,
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        });
+        return;
+      } catch (e) {
+        console.warn('IntentLauncher failed', e);
+      }
+    }
+
     const available = await Sharing.isAvailableAsync();
     if (!available) {
-      // Web fallback / platforms without a share sheet: try a direct open.
       await Linking.openURL(uri);
       return;
     }
-    // On iOS, this opens Quick Look (full screen preview) natively.
+    // On iOS, this opens Quick Look natively.
     await Sharing.shareAsync(uri);
   } catch (e) {
     Alert.alert('Could not open file', 'No app on this device could open this file format.');

@@ -199,7 +199,6 @@ export default function FocusSessionScreen() {
               size={300}
               strokeWidth={14}
               color={status === 'paused' ? colors.warning : baseColor}
-              glassEffect={true}
               centerComponent={
                 <Text style={[styles.timerText, status === 'paused' && styles.timerPaused]}>
                   {formatTime(timeLeft)}
