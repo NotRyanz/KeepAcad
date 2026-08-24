@@ -8,7 +8,7 @@ export type ChatMessage = {
   error?: boolean;
 };
 
-const MODEL = 'gemini-2.0-flash';
+const MODEL = 'gemini-flash-latest';
 const ENDPOINT = (apiKey: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
@@ -36,6 +36,9 @@ function messageForStatus(status: number, apiMsg?: string): string {
   }
   if (status === 429) {
     return "Gemini's free tier is briefly rate-limited. This is common right after creating a new key — it usually resolves within a minute.";
+  }
+  if (status === 503) {
+    return "Google Gemini is currently experiencing very high demand. The app tried to automatically retry, but Google's servers are still full. Please try again in a few minutes.";
   }
   if (apiMsg) return apiMsg;
   return `Gemini request failed (${status}).`;
@@ -78,10 +81,10 @@ async function requestGemini(params: { apiKey: string; body: object; maxRetries?
 
     lastError = new GeminiError(messageForStatus(response.status, apiMsg), response.status);
 
-    const canRetry = response.status === 429 && attempt < maxRetries;
+    const canRetry = (response.status === 429 || response.status === 503) && attempt < maxRetries;
     if (!canRetry) throw lastError;
 
-    await sleep(1500 * (attempt + 1));
+    await sleep(2500 * (attempt + 1)); // slightly longer backoff for 503s
   }
 
   throw lastError ?? new GeminiError('Gemini request failed.');
@@ -107,7 +110,7 @@ export async function askGemini(params: {
     }));
 
   const body = {
-    system_instruction: { parts: [{ text: systemPrompt }] },
+    systemInstruction: { parts: [{ text: systemPrompt }] },
     contents,
     generationConfig: {
       temperature: 0.6,

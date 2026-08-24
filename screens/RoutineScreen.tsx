@@ -5,7 +5,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, FadeInDown, Layout } from 'react-native-reanimated';
-
+import { Swipeable } from 'react-native-gesture-handler';
+import { useNavigation } from '@react-navigation/native';
 import { radius, font, spacing, subjectColor, ThemeColors } from '../lib/theme';
 import { useTheme } from '../context/ThemeContext';
 import { DAY_NAMES_SHORT, mondayIndexOfDate } from '../lib/dateUtils';
@@ -297,6 +298,7 @@ function RoutineRow({
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const navigation = useNavigation<any>();
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const color = subjectColor(routine.colorSeed, colors);
@@ -308,38 +310,61 @@ function RoutineRow({
     onToggle();
   };
 
+  const swipeableRef = React.useRef<any>(null);
+
+  const handleFocusSwipe = () => {
+    swipeableRef.current?.close();
+    navigation.navigate('FocusSession', { taskTitle: routine.title });
+  };
+
+  const renderLeftActions = () => {
+    return (
+      <View style={[styles.swipeAction, { backgroundColor: colors.accentBlue }]}>
+        <Ionicons name="timer-outline" size={24} color={colors.bg} />
+        <Text style={styles.swipeActionText}>Focus</Text>
+      </View>
+    );
+  };
+
   return (
-    <View style={styles.routineRow}>
-      <Pressable onPress={onOpenDetail} style={styles.routineMainArea}>
-        <View style={[styles.routineIconWrap, { backgroundColor: color + '1f' }]}>
-          <Ionicons name={routine.icon as any} size={17} color={color} />
-        </View>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[styles.routineTitle, done && styles.routineTitleDone]} numberOfLines={1}>
-            {routine.title}
-          </Text>
-          <View style={styles.routineMetaRow}>
-            <Text style={styles.routineFrequency}>{frequencyLabel(routine)}</Text>
-            {streak > 0 && (
-              <>
-                <Text style={styles.dotSep}>·</Text>
-                <Ionicons name="flame" size={11} color={colors.accentOrange} />
-                <Text style={styles.streakText}>{streak}</Text>
-              </>
-            )}
-            <Text style={styles.dotSep}>·</Text>
-            <Ionicons name="stats-chart-outline" size={10} color={colors.mutedSoft} />
+    <Swipeable 
+      ref={swipeableRef}
+      renderLeftActions={renderLeftActions} 
+      overshootLeft={true}
+      onSwipeableOpen={handleFocusSwipe}
+    >
+      <View style={styles.routineRow}>
+        <Pressable onPress={onOpenDetail} style={styles.routineMainArea}>
+          <View style={[styles.routineIconWrap, { backgroundColor: color + '1f' }]}>
+            <Ionicons name={routine.icon as any} size={17} color={color} />
           </View>
-        </View>
-      </Pressable>
-      <Pressable onPress={handleToggle} hitSlop={8}>
-        <Animated.View style={animStyle}>
-          <View style={[styles.checkbox, done && { backgroundColor: colors.success, borderColor: colors.success }]}>
-            {done && <Ionicons name="checkmark" size={15} color={colors.bg} />}
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={[styles.routineTitle, done && styles.routineTitleDone]} numberOfLines={1}>
+              {routine.title}
+            </Text>
+            <View style={styles.routineMetaRow}>
+              <Text style={styles.routineFrequency}>{frequencyLabel(routine)}</Text>
+              {streak > 0 && (
+                <>
+                  <Text style={styles.dotSep}>·</Text>
+                  <Ionicons name="flame" size={11} color={colors.accentOrange} />
+                  <Text style={styles.streakText}>{streak}</Text>
+                </>
+              )}
+              <Text style={styles.dotSep}>·</Text>
+              <Ionicons name="stats-chart-outline" size={10} color={colors.mutedSoft} />
+            </View>
           </View>
-        </Animated.View>
-      </Pressable>
-    </View>
+        </Pressable>
+        <Pressable onPress={handleToggle} hitSlop={8}>
+          <Animated.View style={animStyle}>
+            <View style={[styles.checkbox, done && { backgroundColor: colors.success, borderColor: colors.success }]}>
+              {done && <Ionicons name="checkmark" size={15} color={colors.bg} />}
+            </View>
+          </Animated.View>
+        </Pressable>
+      </View>
+    </Swipeable>
   );
 }
 
@@ -552,5 +577,14 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
     },
     dayToggleText: { ...font.caption, fontWeight: '700', color: colors.mutedSoft },
+    swipeAction: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderTopWidth: 1,
+      borderTopColor: colors.hairlineSoft,
+      width: 80,
+    },
+    swipeActionText: { ...font.caption, color: colors.bg, fontWeight: '700', marginTop: 4 },
   });
 }

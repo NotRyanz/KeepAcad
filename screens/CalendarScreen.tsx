@@ -12,6 +12,8 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { persistPickedFile, openFileOrLink } from '../lib/fileStorage';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -48,7 +50,6 @@ export default function CalendarScreen() {
 
   const [recordVisible, setRecordVisible] = useState(false);
   const [transcriptFor, setTranscriptFor] = useState<NoteEntry | null>(null);
-  const [photoViewer, setPhotoViewer] = useState<string | null>(null);
   const [transcriptDraft, setTranscriptDraft] = useState('');
 
   const weeks = useMemo(() => getMonthMatrix(viewYear, viewMonth), [viewYear, viewMonth]);
@@ -94,10 +95,24 @@ export default function CalendarScreen() {
         ? await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false })
         : await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsEditing: false, mediaTypes: ['images'] });
       if (result.canceled) return;
-      const uri = result.assets[0].uri;
-      addNote({ date: selectedIso, type: 'photo', uri, title: 'Notes photo' });
+      const asset = result.assets[0];
+      const fallbackName = `photo-${Date.now()}.jpg`;
+      const { uri, name } = await persistPickedFile(asset.uri, asset.fileName || fallbackName);
+      addNote({ date: selectedIso, type: 'photo', uri, title: name });
     } catch (e) {
       Alert.alert('Could not add photo', 'Something went wrong accessing your media.');
+    }
+  };
+
+  const handleAddFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const { uri, name } = await persistPickedFile(asset.uri, asset.name);
+      addNote({ date: selectedIso, type: 'file', uri, title: name });
+    } catch (e) {
+      Alert.alert('Could not attach file', 'Something went wrong.');
     }
   };
 
@@ -216,7 +231,11 @@ export default function CalendarScreen() {
               </Pressable>
               <Pressable style={styles.actionBtn} onPress={() => handleAddPhoto(true)}>
                 <Ionicons name="camera" size={18} color={colors.accentViolet} />
-                <Text style={styles.actionLabel}>Camera</Text>
+                <Text style={styles.actionLabel}>Cam</Text>
+              </Pressable>
+              <Pressable style={styles.actionBtn} onPress={handleAddFile}>
+                <Ionicons name="document-attach" size={18} color={colors.accentAmber} />
+                <Text style={styles.actionLabel}>File</Text>
               </Pressable>
               <Pressable
                 style={styles.actionBtn}
@@ -236,7 +255,6 @@ export default function CalendarScreen() {
             <NoteCard
               entry={item}
               onEditTranscript={() => openTranscriptEditor(item)}
-              onViewPhoto={() => item.uri && setPhotoViewer(item.uri)}
               onDelete={() => removeNote(item.id)}
             />
           </Animated.View>
@@ -268,12 +286,6 @@ export default function CalendarScreen() {
         </Text>
         <TranscriptInput value={transcriptDraft} onChange={setTranscriptDraft} />
         <PrimaryButton label="Save transcript" onPress={saveTranscript} full style={{ marginTop: spacing.md }} />
-      </ModalSheet>
-
-      <ModalSheet visible={!!photoViewer} onClose={() => setPhotoViewer(null)} title="Notes photo" maxHeight={560}>
-        {photoViewer && (
-          <Image source={{ uri: photoViewer }} style={{ width: '100%', height: 420, borderRadius: radius.lg }} contentFit="contain" />
-        )}
       </ModalSheet>
     </SafeAreaView>
   );
@@ -307,12 +319,10 @@ function TranscriptInput({ value, onChange }: { value: string; onChange: (v: str
 function NoteCard({
   entry,
   onEditTranscript,
-  onViewPhoto,
   onDelete,
 }: {
   entry: NoteEntry;
   onEditTranscript: () => void;
-  onViewPhoto: () => void;
   onDelete: () => void;
 }) {
   const { colors } = useTheme();
@@ -343,8 +353,8 @@ function NoteCard({
     }
   };
 
-  const icon = entry.type === 'audio' ? 'mic' : entry.type === 'photo' ? 'image' : 'document-text';
-  const iconColor = entry.type === 'audio' ? colors.accentBlue : entry.type === 'photo' ? colors.accentEmerald : colors.accentOrange;
+  const icon = entry.type === 'audio' ? 'mic' : entry.type === 'photo' ? 'image' : entry.type === 'file' ? 'document-attach' : 'document-text';
+  const iconColor = entry.type === 'audio' ? colors.accentBlue : entry.type === 'photo' ? colors.accentEmerald : entry.type === 'file' ? colors.accentAmber : colors.accentOrange;
 
   return (
     <Card style={{ marginBottom: spacing.sm }}>
@@ -384,8 +394,17 @@ function NoteCard({
       )}
 
       {entry.type === 'photo' && entry.uri && (
-        <Pressable onPress={onViewPhoto}>
+        <Pressable onPress={() => openFileOrLink(entry.uri)}>
           <Image source={{ uri: entry.uri }} style={styles.photoThumb} contentFit="cover" />
+        </Pressable>
+      )}
+
+      {entry.type === 'file' && entry.uri && (
+        <Pressable onPress={() => openFileOrLink(entry.uri)} style={styles.fileBoxWrap}>
+          <View style={styles.fileBox}>
+            <Ionicons name="document-attach" size={20} color={colors.accentAmber} />
+            <Text style={styles.fileBoxText} numberOfLines={1}>{entry.title || 'Attached File'}</Text>
+          </View>
         </Pressable>
       )}
 
@@ -519,7 +538,7 @@ function createStyles(colors: ThemeColors) {
     weekLabel: { flex: 1, textAlign: 'center', ...font.caption, color: colors.mutedSoft },
     weekRow: { flexDirection: 'row' },
     dayCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-    dayCircle: { width: 34, height: 34, borderRadius: radius.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+    dayCircle: { width: 34, height: 34, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
     dayCircleSelected: { backgroundColor: colors.primary },
     dayCircleToday: { borderWidth: 1.5, borderColor: colors.accentBlue },
     dayNumber: { ...font.bodySm, color: colors.body },
@@ -570,6 +589,9 @@ function createStyles(colors: ThemeColors) {
     transcriptText: { ...font.bodySm, color: colors.body, lineHeight: 19 },
     transcriptPlaceholder: { ...font.bodySm, color: colors.mutedSoft, fontStyle: 'italic' },
     transcriptHint: { ...font.bodySm, color: colors.mutedSoft, marginBottom: spacing.sm, lineHeight: 18 },
+    fileBoxWrap: { marginTop: 12 },
+    fileBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceCardAlt, padding: 12, borderRadius: radius.md, gap: 10 },
+    fileBoxText: { ...font.bodyMd, color: colors.ink, flexShrink: 1 },
     timerText: { ...font.displayLg, color: colors.ink, marginBottom: spacing.lg, fontVariant: ['tabular-nums'] },
     micOuter: {
       width: 100,

@@ -43,60 +43,13 @@ type AppContextValue = AppState & {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-const SEED_SUBJECTS: Subject[] = [
-  { id: 's1', name: 'Data Structures', code: 'CS201', colorSeed: 'ds' },
-  { id: 's2', name: 'Thermodynamics', code: 'ME210', colorSeed: 'th' },
-  { id: 's3', name: 'Linear Algebra', code: 'MA150', colorSeed: 'la' },
-  { id: 's4', name: 'Digital Electronics', code: 'EC220', colorSeed: 'de' },
-];
+const SEED_SUBJECTS: Subject[] = [];
 
-const SEED_SESSIONS: ClassSession[] = [
-  { id: uid(), subjectId: 's1', day: 0, startMinute: 9 * 60, endMinute: 10 * 60 + 30, location: 'Room 204' },
-  { id: uid(), subjectId: 's3', day: 0, startMinute: 11 * 60, endMinute: 12 * 60, location: 'Room 110' },
-  { id: uid(), subjectId: 's2', day: 1, startMinute: 10 * 60, endMinute: 11 * 60 + 30, location: 'Lab B' },
-  { id: uid(), subjectId: 's4', day: 2, startMinute: 9 * 60, endMinute: 10 * 60, location: 'Room 305' },
-  { id: uid(), subjectId: 's1', day: 2, startMinute: 14 * 60, endMinute: 15 * 60 + 30, location: 'Room 204' },
-  { id: uid(), subjectId: 's3', day: 3, startMinute: 11 * 60, endMinute: 12 * 60, location: 'Room 110' },
-  { id: uid(), subjectId: 's2', day: 4, startMinute: 13 * 60, endMinute: 14 * 60 + 30, location: 'Lab B' },
-  { id: uid(), subjectId: 's4', day: 4, startMinute: 15 * 60, endMinute: 16 * 60, location: 'Room 305' },
-];
+const SEED_SESSIONS: ClassSession[] = [];
 
-const SEED_TASKS: Task[] = [
-  {
-    id: uid(),
-    title: 'Submit DS Assignment 3',
-    subjectId: 's1',
-    deadline: new Date(Date.now() + 1000 * 60 * 60 * 20).toISOString(),
-    notes: 'Cover AVL trees and heap sort complexity analysis.',
-    completed: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: uid(),
-    title: 'Thermo lab report',
-    subjectId: 's2',
-    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2.5).toISOString(),
-    notes: 'Include Carnot cycle efficiency calculations.',
-    completed: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: uid(),
-    title: 'Linear Algebra problem set 5',
-    subjectId: 's3',
-    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 6).toISOString(),
-    notes: '',
-    completed: false,
-    createdAt: new Date().toISOString(),
-  },
-];
+const SEED_TASKS: Task[] = [];
 
-const SEED_ROUTINES: RoutineItem[] = [
-  { id: uid(), title: 'Review today\u2019s lecture notes', icon: 'book-outline', colorSeed: 'rev', frequency: 'daily', createdAt: new Date().toISOString() },
-  { id: uid(), title: 'Solve 5 practice problems', icon: 'barbell-outline', colorSeed: 'prac', frequency: 'weekdays', createdAt: new Date().toISOString() },
-  { id: uid(), title: 'Read for 30 minutes', icon: 'library-outline', colorSeed: 'read', frequency: 'daily', createdAt: new Date().toISOString() },
-  { id: uid(), title: 'Plan tomorrow\u2019s schedule', icon: 'sunny-outline', colorSeed: 'plan', frequency: 'daily', createdAt: new Date().toISOString() },
-];
+const SEED_ROUTINES: RoutineItem[] = [];
 
 function seedRoutineLogs(routines: RoutineItem[]): RoutineLog[] {
   const logs: RoutineLog[] = [];

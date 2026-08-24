@@ -141,7 +141,7 @@ function createStyles(colors: ThemeColors) {
     weekLabel: { flex: 1, textAlign: 'center', ...font.caption, color: colors.mutedSoft },
     weekRow: { flexDirection: 'row' },
     dayCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-    dayCircle: { width: 30, height: 30, borderRadius: radius.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+    dayCircle: { width: 30, height: 30, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
     dayNumber: { ...font.bodySm, color: colors.body, fontSize: 12 },
     dayNumberOutside: { color: colors.mutedSoft, opacity: 0.3 },
     legendRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.md, marginTop: spacing.md },

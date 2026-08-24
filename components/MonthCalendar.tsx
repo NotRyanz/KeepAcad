@@ -89,7 +89,7 @@ function createStyles(colors: ThemeColors) {
     weekLabel: { flex: 1, textAlign: 'center', ...font.caption, color: colors.mutedSoft },
     weekRow: { flexDirection: 'row' },
     dayCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-    dayCircle: { width: 32, height: 32, borderRadius: radius.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+    dayCircle: { width: 32, height: 32, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
     dayCircleSelected: { backgroundColor: colors.primary },
     dayCircleToday: { borderWidth: 1.5, borderColor: colors.accentBlue },
     dayNumber: { ...font.bodySm, color: colors.body },

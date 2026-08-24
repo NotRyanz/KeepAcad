@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Pressable, FlatList, Alert } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeInDown, FadeOutLeft, Layout } from 'react-native-reanimated';
-
+import { Swipeable } from 'react-native-gesture-handler';
+import { useNavigation } from '@react-navigation/native';
 import { radius, font, spacing, ThemeColors } from '../lib/theme';
 import { useTheme } from '../context/ThemeContext';
 import { formatCountdown, minutesToLabel } from '../lib/dateUtils';
@@ -160,39 +161,63 @@ function TaskRow({
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const navigation = useNavigation<any>();
   const { label, urgency } = formatCountdown(task.deadline);
   const barColor = task.completed ? colors.mutedSoft : urgencyColor[urgency];
 
-  return (
-    <Card style={[styles.taskCard, { borderLeftWidth: 3, borderLeftColor: barColor }]}>
-      <View style={styles.taskRow}>
-        <Pressable onPress={onToggle} style={[styles.checkbox, task.completed && { backgroundColor: colors.success, borderColor: colors.success }]}>
-          {task.completed && <Ionicons name="checkmark" size={14} color={colors.bg} />}
-        </Pressable>
-        <Pressable style={{ flex: 1, marginLeft: 12 }} onPress={onEdit}>
-          <Text style={[styles.taskTitle, task.completed && styles.taskTitleDone]} numberOfLines={2}>
-            {task.title}
-          </Text>
-          <View style={styles.metaRow}>
-            {subjectName && <Text style={styles.taskSubject}>{subjectName}</Text>}
-            {subjectName && <Text style={styles.dotSep}>·</Text>}
-            <Text style={[styles.taskDeadline, { color: task.completed ? colors.mutedSoft : barColor }]}>{label}</Text>
-          </View>
-          {task.notes ? (
-            <Text style={styles.taskNotes} numberOfLines={2}>
-              {task.notes}
-            </Text>
-          ) : null}
-          <AttachmentRow attachments={task.attachments ?? []} />
-        </Pressable>
-        <Pressable onPress={onEdit} hitSlop={8} style={{ marginLeft: 8 }}>
-          <Ionicons name="pencil-outline" size={16} color={colors.mutedSoft} />
-        </Pressable>
-        <Pressable onPress={onDelete} hitSlop={8} style={{ marginLeft: 12 }}>
-          <Ionicons name="trash-outline" size={16} color={colors.mutedSoft} />
-        </Pressable>
+  const swipeableRef = React.useRef<any>(null);
+
+  const handleFocusSwipe = () => {
+    swipeableRef.current?.close();
+    navigation.navigate('FocusSession', { taskTitle: task.title });
+  };
+
+  const renderLeftActions = () => {
+    return (
+      <View style={[styles.swipeAction, { backgroundColor: colors.accentBlue }]}>
+        <Ionicons name="timer-outline" size={24} color={colors.bg} />
+        <Text style={styles.swipeActionText}>Focus</Text>
       </View>
-    </Card>
+    );
+  };
+
+  return (
+    <Swipeable 
+      ref={swipeableRef}
+      renderLeftActions={renderLeftActions} 
+      overshootLeft={true}
+      onSwipeableOpen={handleFocusSwipe}
+    >
+      <Card style={[styles.taskCard, { borderLeftWidth: 3, borderLeftColor: barColor }]}>
+        <View style={styles.taskRow}>
+          <Pressable onPress={onToggle} style={[styles.checkbox, task.completed && { backgroundColor: colors.success, borderColor: colors.success }]}>
+            {task.completed && <Ionicons name="checkmark" size={14} color={colors.bg} />}
+          </Pressable>
+          <Pressable style={{ flex: 1, marginLeft: 12 }} onPress={onEdit}>
+            <Text style={[styles.taskTitle, task.completed && styles.taskTitleDone]} numberOfLines={2}>
+              {task.title}
+            </Text>
+            <View style={styles.metaRow}>
+              {subjectName && <Text style={styles.taskSubject}>{subjectName}</Text>}
+              {subjectName && <Text style={styles.dotSep}>·</Text>}
+              <Text style={[styles.taskDeadline, { color: task.completed ? colors.mutedSoft : barColor }]}>{label}</Text>
+            </View>
+            {task.notes ? (
+              <Text style={styles.taskNotes} numberOfLines={2}>
+                {task.notes}
+              </Text>
+            ) : null}
+            <AttachmentRow attachments={task.attachments ?? []} />
+          </Pressable>
+          <Pressable onPress={onEdit} hitSlop={8} style={{ marginLeft: 8 }}>
+            <Ionicons name="pencil-outline" size={16} color={colors.mutedSoft} />
+          </Pressable>
+          <Pressable onPress={onDelete} hitSlop={8} style={{ marginLeft: 12 }}>
+            <Ionicons name="trash-outline" size={16} color={colors.mutedSoft} />
+          </Pressable>
+        </View>
+      </Card>
+    </Swipeable>
   );
 }
 
@@ -376,5 +401,14 @@ function createStyles(colors: ThemeColors) {
       marginBottom: spacing.md,
     },
     dateRowText: { ...font.bodyMd, color: colors.ink, flex: 1 },
+    swipeAction: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: radius.md,
+      marginBottom: spacing.sm,
+      width: 80,
+    },
+    swipeActionText: { ...font.caption, color: colors.bg, fontWeight: '700', marginTop: 4 },
   });
 }

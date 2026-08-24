@@ -1,6 +1,8 @@
 import { Alert, Linking, Platform } from 'react-native';
 import { File, Directory, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 const ATTACHMENTS_SUBDIR = 'attachments';
 
@@ -59,12 +61,39 @@ export async function openFileOrLink(uri: string | undefined): Promise<void> {
       return;
     }
 
+    if (Platform.OS === 'android') {
+      try {
+        let contentUri = uri;
+        if (uri.startsWith('file://')) {
+          contentUri = await FileSystem.getContentUriAsync(uri);
+        }
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: contentUri,
+          flags: 1,
+        });
+        return;
+      } catch (e) {
+        // Fallback to sharing if IntentLauncher fails
+      }
+    }
+
+    if (Platform.OS === 'web') {
+      // Browsers often falsely report Sharing as available but fail on blobs
+      try {
+        window.open(uri, '_blank');
+      } catch (e) {
+        await Linking.openURL(uri);
+      }
+      return;
+    }
+
     const available = await Sharing.isAvailableAsync();
     if (!available) {
       // Web fallback / platforms without a share sheet: try a direct open.
       await Linking.openURL(uri);
       return;
     }
+    // On iOS, this opens Quick Look (full screen preview) natively.
     await Sharing.shareAsync(uri);
   } catch (e) {
     Alert.alert('Could not open file', 'No app on this device could open this file format.');

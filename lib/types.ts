@@ -47,7 +47,7 @@ export type AttendanceRecord = {
   status: AttendanceStatus;
 };
 
-export type NoteEntryType = 'audio' | 'photo' | 'text';
+export type NoteEntryType = 'audio' | 'photo' | 'text' | 'file';
 
 export type NoteEntry = {
   id: string;

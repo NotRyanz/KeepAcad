@@ -21,6 +21,7 @@ import LibraryScreen from './screens/LibraryScreen';
 import SubjectDetailScreen from './screens/SubjectDetailScreen';
 import TasksScreen from './screens/TasksScreen';
 import AssistantScreen from './screens/AssistantScreen';
+import FocusSessionScreen from './screens/FocusSessionScreen';
 
 const Tab = createBottomTabNavigator();
 const LibraryStack = createNativeStackNavigator();
@@ -74,6 +75,11 @@ function RootNavigator() {
           name="Assistant"
           component={AssistantScreen}
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+        <RootStack.Screen
+          name="FocusSession"
+          component={FocusSessionScreen}
+          options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
         />
       </RootStack.Navigator>
     </NavigationContainer>
