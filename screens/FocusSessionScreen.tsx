@@ -4,10 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, Easing } from 'react-native-reanimated';
 
 import { useTheme } from '../context/ThemeContext';
-import { radius, font, spacing, ThemeColors, subjectColor, subjectSoftColor } from '../lib/theme';
+import { radius, font, spacing, ThemeColors, subjectColor, subjectSoftColor, SUBJECT_ACCENT_KEYS } from '../lib/theme';
 import { PrimaryButton, IconButton } from '../components/Buttons';
 import ProgressRing from '../components/ProgressRing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,18 +34,25 @@ export default function FocusSessionScreen() {
   const [mediaType, setMediaType] = useState<'video' | 'audio' | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [videoFit, setVideoFit] = useState<'cover' | 'contain'>('cover');
+  const [vibeIndex, setVibeIndex] = useState<number | null>(null);
+  const [showMoreControls, setShowMoreControls] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('focus_media').then(val => {
       if (val) {
-        const { uri, type, muted, fit } = JSON.parse(val);
+        const { uri, type, muted, fit, vibe } = JSON.parse(val);
         setMediaUri(uri);
         setMediaType(type);
         if (muted !== undefined) setIsMuted(muted);
         if (fit !== undefined) setVideoFit(fit);
+        if (vibe !== undefined) setVibeIndex(vibe);
       }
     });
   }, []);
+
+  const saveMediaState = (uri: string | null, type: 'video' | 'audio' | null, muted: boolean, fit: 'cover' | 'contain', vibe: number | null) => {
+    AsyncStorage.setItem('focus_media', JSON.stringify({ uri, type, muted, fit, vibe }));
+  };
 
   const pickMedia = async () => {
     try {
@@ -54,25 +62,37 @@ export default function FocusSessionScreen() {
         const type = asset.mimeType?.startsWith('video/') ? 'video' : 'audio';
         setMediaUri(asset.uri);
         setMediaType(type);
-        AsyncStorage.setItem('focus_media', JSON.stringify({ uri: asset.uri, type, muted: isMuted, fit: videoFit }));
+        saveMediaState(asset.uri, type, isMuted, videoFit, vibeIndex);
+        setShowMoreControls(false);
       }
     } catch (e) {}
+  };
+
+  const clearMedia = () => {
+    setMediaUri(null);
+    setMediaType(null);
+    saveMediaState(null, null, isMuted, videoFit, vibeIndex);
+    setShowMoreControls(false);
   };
 
   const toggleMute = () => {
     const next = !isMuted;
     setIsMuted(next);
-    if (mediaUri && mediaType) {
-      AsyncStorage.setItem('focus_media', JSON.stringify({ uri: mediaUri, type: mediaType, muted: next, fit: videoFit }));
-    }
+    saveMediaState(mediaUri, mediaType, next, videoFit, vibeIndex);
   };
 
   const toggleFit = () => {
     const next = videoFit === 'cover' ? 'contain' : 'cover';
     setVideoFit(next);
-    if (mediaUri && mediaType) {
-      AsyncStorage.setItem('focus_media', JSON.stringify({ uri: mediaUri, type: mediaType, muted: isMuted, fit: next }));
-    }
+    saveMediaState(mediaUri, mediaType, isMuted, next, vibeIndex);
+    setShowMoreControls(false);
+  };
+
+  const changeVibe = () => {
+    const next = vibeIndex === null ? 0 : (vibeIndex + 1) % SUBJECT_ACCENT_KEYS.length;
+    setVibeIndex(next);
+    saveMediaState(mediaUri, mediaType, isMuted, videoFit, next);
+    setShowMoreControls(false);
   };
 
   useEffect(() => {
@@ -114,8 +134,19 @@ export default function FocusSessionScreen() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const baseColor = useMemo(() => subjectColor(taskTitle, colors), [taskTitle, colors]);
-  const softColor = useMemo(() => subjectSoftColor(taskTitle, colors), [taskTitle, colors]);
+  const baseColor = useMemo(() => {
+    if (vibeIndex !== null) return colors[SUBJECT_ACCENT_KEYS[vibeIndex % SUBJECT_ACCENT_KEYS.length]];
+    return subjectColor(taskTitle, colors);
+  }, [taskTitle, colors, vibeIndex]);
+
+  const softColor = useMemo(() => {
+    if (vibeIndex !== null) {
+      const key = SUBJECT_ACCENT_KEYS[vibeIndex % SUBJECT_ACCENT_KEYS.length];
+      const softKey = (key + 'Soft') as keyof ThemeColors;
+      return colors[softKey];
+    }
+    return subjectSoftColor(taskTitle, colors);
+  }, [taskTitle, colors, vibeIndex]);
 
   const pulse = useSharedValue(1);
   useEffect(() => {
@@ -133,6 +164,38 @@ export default function FocusSessionScreen() {
     transform: [{ scale: pulse.value }],
     opacity: status === 'running' ? 0.08 : 0.03,
   }));
+
+  const renderMediaControls = () => (
+    <View style={{ flexDirection: 'row', gap: spacing.md, flexWrap: 'wrap', justifyContent: 'center', maxWidth: '90%' }}>
+      <Pressable onPress={changeVibe} style={styles.mediaPickerBtn}>
+        <Ionicons name="color-palette-outline" size={18} color={baseColor} />
+        <Text style={[styles.mediaPickerText, { color: baseColor }]}>Change Vibe</Text>
+      </Pressable>
+
+      <Pressable onPress={pickMedia} style={styles.mediaPickerBtn}>
+        <Ionicons name={mediaType === 'video' ? 'videocam' : mediaType === 'audio' ? 'musical-notes' : 'add-circle-outline'} size={18} color={baseColor} />
+        <Text style={[styles.mediaPickerText, { color: baseColor }]}>
+          {mediaUri ? 'Change Track' : 'Add Background Track'}
+        </Text>
+      </Pressable>
+
+      {mediaUri && (
+        <Pressable onPress={clearMedia} style={styles.mediaPickerBtn}>
+          <Ionicons name="trash-outline" size={18} color={baseColor} />
+          <Text style={[styles.mediaPickerText, { color: baseColor }]}>Remove Track</Text>
+        </Pressable>
+      )}
+
+      {mediaType === 'video' && (
+        <Pressable onPress={toggleFit} style={styles.mediaPickerBtn}>
+          <Ionicons name={videoFit === 'cover' ? 'scan' : 'expand'} size={18} color={baseColor} />
+          <Text style={[styles.mediaPickerText, { color: baseColor }]}>
+            {videoFit === 'cover' ? 'Fill Screen' : 'Fit to Screen'}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: softColor }]}>
@@ -170,23 +233,7 @@ export default function FocusSessionScreen() {
               ))}
             </View>
 
-            <View style={{ flexDirection: 'row', gap: spacing.md, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <Pressable onPress={pickMedia} style={styles.mediaPickerBtn}>
-                <Ionicons name={mediaType === 'video' ? 'videocam' : mediaType === 'audio' ? 'musical-notes' : 'add-circle-outline'} size={18} color={baseColor} />
-                <Text style={[styles.mediaPickerText, { color: baseColor }]}>
-                  {mediaUri ? 'Change Track' : 'Add Background Track'}
-                </Text>
-              </Pressable>
-
-              {mediaType === 'video' && (
-                <Pressable onPress={toggleFit} style={styles.mediaPickerBtn}>
-                  <Ionicons name={videoFit === 'cover' ? 'scan' : 'expand'} size={18} color={baseColor} />
-                  <Text style={[styles.mediaPickerText, { color: baseColor }]}>
-                    {videoFit === 'cover' ? 'Fill Screen' : 'Fit to Screen'}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
+            {renderMediaControls()}
 
             <PrimaryButton label="Start Session" onPress={startSession} style={{ marginTop: spacing.xl, paddingHorizontal: 40 }} />
           </Animated.View>
@@ -207,20 +254,22 @@ export default function FocusSessionScreen() {
             />
             
             <View style={styles.controlsRow}>
-              {mediaUri && (
-                <Pressable style={[styles.circleBtn, styles.circleBtnSmall]} onPress={toggleMute}>
-                  <Ionicons name={isMuted ? 'volume-mute' : 'volume-medium'} size={20} color={colors.muted} />
-                </Pressable>
-              )}
+              <View style={[styles.circleBtnSmall, { opacity: mediaUri ? 1 : 0 }]}>
+                {mediaUri && (
+                  <Pressable style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]} onPress={toggleMute}>
+                    <Ionicons name={isMuted ? 'volume-mute' : 'volume-medium'} size={20} color={colors.muted} />
+                  </Pressable>
+                )}
+              </View>
               <Pressable style={styles.circleBtn} onPress={togglePause}>
                 <Ionicons name={status === 'running' ? 'pause' : 'play'} size={28} color={colors.ink} />
               </Pressable>
               <Pressable style={[styles.circleBtn, { backgroundColor: colors.surfaceCardAlt }]} onPress={endSession}>
                 <Ionicons name="stop" size={24} color={colors.muted} />
               </Pressable>
-              {mediaUri && (
-                <View style={[styles.circleBtnSmall, { opacity: 0 }]} /> 
-              )}
+              <Pressable style={[styles.circleBtnSmall, { backgroundColor: showMoreControls ? colors.surfaceStrong : 'transparent', borderRadius: 999, alignItems: 'center', justifyContent: 'center' }]} onPress={() => setShowMoreControls(!showMoreControls)}>
+                <Ionicons name="ellipsis-horizontal" size={20} color={colors.muted} />
+              </Pressable>
             </View>
           </Animated.View>
         )}
@@ -236,6 +285,18 @@ export default function FocusSessionScreen() {
           </Animated.View>
         )}
       </View>
+
+      {showMoreControls && (
+        <Animated.View entering={FadeIn} exiting={FadeOut} style={[StyleSheet.absoluteFill, { zIndex: 100, justifyContent: 'center', alignItems: 'center' }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowMoreControls(false)}>
+            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+          </Pressable>
+          <View style={{ backgroundColor: colors.surfaceCard, padding: spacing.xl, borderRadius: radius.xl, width: '90%', maxWidth: 400, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 }}>
+            <Text style={[font.titleMd, { color: colors.ink, marginBottom: spacing.lg }]}>Options</Text>
+            {renderMediaControls()}
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }

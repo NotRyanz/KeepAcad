@@ -53,28 +53,31 @@ export async function persistPickedFile(sourceUri: string, suggestedName?: strin
  *   format" work without the app needing to bundle a viewer for each type —
  *   the OS + installed apps do the viewing, we just hand off the file.
  */
+function getMimeType(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf': return 'application/pdf';
+    case 'png': return 'image/png';
+    case 'jpg': case 'jpeg': return 'image/jpeg';
+    case 'gif': return 'image/gif';
+    case 'mp4': return 'video/mp4';
+    case 'mp3': return 'audio/mpeg';
+    case 'doc': case 'docx': return 'application/msword';
+    case 'xls': case 'xlsx': return 'application/vnd.ms-excel';
+    case 'ppt': case 'pptx': return 'application/vnd.ms-powerpoint';
+    case 'txt': return 'text/plain';
+    case 'csv': return 'text/csv';
+    case 'zip': return 'application/zip';
+    default: return '*/*';
+  }
+}
+
 export async function openFileOrLink(uri: string | undefined): Promise<void> {
   if (!uri) return;
   try {
     if (/^https?:\/\//i.test(uri)) {
       await Linking.openURL(uri);
       return;
-    }
-
-    if (Platform.OS === 'android') {
-      try {
-        let contentUri = uri;
-        if (uri.startsWith('file://')) {
-          contentUri = await FileSystem.getContentUriAsync(uri);
-        }
-        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-          data: contentUri,
-          flags: 1,
-        });
-        return;
-      } catch (e) {
-        // Fallback to sharing if IntentLauncher fails
-      }
     }
 
     if (Platform.OS === 'web') {
@@ -88,15 +91,24 @@ export async function openFileOrLink(uri: string | undefined): Promise<void> {
 
     if (Platform.OS === 'android') {
       try {
-        // We need the content URI for Android 7+ (Nougat) rather than file://
-        const contentUri = await FileSystem.getContentUriAsync(uri);
+        let contentUri = uri;
+        if (uri.startsWith('file://')) {
+          contentUri = await FileSystem.getContentUriAsync(uri);
+        }
+        
+        const mimeType = getMimeType(uri);
+        
         await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
           data: contentUri,
+          type: mimeType,
           flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
         });
         return;
       } catch (e) {
         console.warn('IntentLauncher failed', e);
+        // Do NOT fallback to sharing automatically so we don't accidentally open share sheet
+        Alert.alert('Cannot Open File', 'No compatible app found to open this file format.');
+        return;
       }
     }
 
